@@ -1,37 +1,16 @@
 // Import dependencies
 const express = require("express");
-const crypto = require("crypto");
 
 const app = express();
 
 // Configuration from environment variables
 const config = {
-  appSecret: process.env.APP_SECRET,
   pageAccessToken: process.env.PAGE_ACCESS_TOKEN,
-  verifyToken: process.env.VERIFY_TOKEN || "your_verify_token",
+  verifyToken: process.env.VERIFY_TOKEN,
 };
 
-// Verify that the callback came from Facebook
-function verifyRequestSignature(req, res, buf) {
-  var signature = req.headers["x-hub-signature-256"];
-
-  if (!signature) {
-    console.warn(`Couldn't find "x-hub-signature-256" in headers.`);
-  } else {
-    var elements = signature.split("=");
-    var signatureHash = elements[1];
-    var expectedHash = crypto
-      .createHmac("sha256", config.appSecret)
-      .update(buf)
-      .digest("hex");
-    if (signatureHash != expectedHash) {
-      throw new Error("Couldn't validate the request signature.");
-    }
-  }
-}
-
-// Parse JSON request bodies with signature verification
-app.use(express.json({ verify: verifyRequestSignature }));
+// Parse JSON request bodies
+app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
