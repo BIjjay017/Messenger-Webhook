@@ -101,12 +101,27 @@ function handlePostback(senderPsid, receivedPostback) {
 
 // Send message via Facebook Send API
 function callSendAPI(senderPsid, response) {
+  // Validate PSID before sending
+  if (!senderPsid || senderPsid === "" || senderPsid === "undefined") {
+    console.error("Invalid PSID: Cannot send message without a valid recipient ID");
+    return;
+  }
+
+  // Validate response object
+  if (!response || (!response.text && !response.attachment)) {
+    console.error("Invalid response: Message must have text or attachment");
+    return;
+  }
+
   const requestBody = {
     recipient: {
       id: senderPsid,
     },
     message: response,
   };
+
+  console.log("Sending message to PSID:", senderPsid);
+  console.log("Message payload:", JSON.stringify(requestBody, null, 2));
 
   // Use dynamic import for node-fetch (ES module)
   import("node-fetch").then(({ default: fetch }) => {
@@ -120,10 +135,38 @@ function callSendAPI(senderPsid, response) {
     )
       .then((res) => res.json())
       .then((json) => {
-        console.log("Message sent successfully:", json);
+        if (json.error) {
+          // Handle specific Facebook API errors
+          const errorCode = json.error.code;
+          const errorMessage = json.error.message;
+
+          switch (errorCode) {
+            case 551:
+              console.error(`Error #551: This person isn't available right now.`);
+              console.error("Possible reasons: User blocked the page, deleted account, or hasn't opted in.");
+              break;
+            case 100:
+              console.error(`Error #100: Invalid parameter.`);
+              console.error("Check if PSID is correct and user has messaged the page first.");
+              break;
+            case 10:
+              console.error(`Error #10: Permission denied.`);
+              console.error("Check if PAGE_ACCESS_TOKEN has 'pages_messaging' permission.");
+              break;
+            case 190:
+              console.error(`Error #190: Invalid access token.`);
+              console.error("PAGE_ACCESS_TOKEN may be expired or invalid.");
+              break;
+            default:
+              console.error(`Facebook API Error #${errorCode}: ${errorMessage}`);
+          }
+          console.error("Full error:", JSON.stringify(json.error, null, 2));
+        } else {
+          console.log("Message sent successfully:", json);
+        }
       })
       .catch((err) => {
-        console.error("Unable to send message:", err);
+        console.error("Network error sending message:", err.message);
       });
   });
 }
